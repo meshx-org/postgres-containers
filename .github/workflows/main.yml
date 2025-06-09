@@ -1,4 +1,4 @@
-name: build container
+name: Build Container
 on: 
   # triggered by user action only
   workflow_dispatch:
@@ -19,15 +19,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: docker/setup-buildx-action@v2
-    - uses: docker/login-action@v2
-      # authenticate ghcr.io
+    - uses: actions/checkout@v4
+    - uses: docker/setup-buildx-action@v3
+    
+    - uses: docker/login-action@v3
+      name: Authenticate ghcr.io
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - name: calculate image tag
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    
+    - name: Calculate image tag
       id: vars
       run: |
         # step 1: order extensions alphabetically
@@ -41,11 +46,13 @@ jobs:
 
         # step 3: output variable to github action
         echo "IMAGE_TAG=${{ github.event.inputs.PG_VERSION }}-${EXTENSIONS}" >> $GITHUB_OUTPUT
+    
     - uses: docker/build-push-action@v3
       with:
         context: .
         file: ./Dockerfile
         push: true
+        platforms: linux/amd64,linux/arm64
         tags: ghcr.io/${{ github.repository_owner }}/postgresql:${{ steps.vars.outputs.IMAGE_TAG }}
         build-args: |
           POSTGRESQL_VERSION=${{ github.event.inputs.PG_VERSION }}
